@@ -33,22 +33,23 @@ main {
   grid-template-rows: repeat(8, 1fr);
 }
 
-.white-cell {
+.cell {
   height: 80px;
   width: 80px;
-  background-color: #ffce9e;
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: 45px;
 }
 
-.black-cell {
-  height: 80px;
-  width: 80px;
+.white {
+  background-color: #ffce9e;
+}
+
+.black {
   background-color: #d18b47;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 45px;
+}
+
+.selected {
+  background-color: #9c6c3a;
 }

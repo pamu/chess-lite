@@ -17,6 +17,17 @@ type cell = {
 
 type board = array(array(cell));
 
+type coord = {
+  x: int,
+  y: int,
+};
+
+type state = {
+  playerColor: color,
+  chessBoard: board,
+  currSelection: option(coord),
+};
+
 let emptyBoard =
   Array.init(8, row =>
     Array.init(8, col =>
@@ -30,41 +41,69 @@ let fillPiece = (board, xy, piece) =>
     piece: Some(piece),
   };
 
-let initialBoard: board = {
+let initialBoard = (playerFacingColor: color) => {
   let pieces = color => [|
     Rook(color),
     Knight(color),
     Bishop(color),
-    King(color),
     Queen(color),
+    King(color),
     Bishop(color),
     Knight(color),
     Rook(color),
   |];
 
+  let counterColor =
+    switch (playerFacingColor) {
+    | White => Black
+    | Black => White
+    };
+
   let board = emptyBoard;
 
   let topPiecesRow = 0;
   for (col in 0 to 7) {
-    fillPiece(board, (topPiecesRow, col), pieces(Black)[col]);
+    fillPiece(board, (topPiecesRow, col), pieces(counterColor)[col]);
   };
 
   let topPawnRow = 1;
   for (col in 0 to 7) {
-    fillPiece(board, (topPawnRow, col), Pawn(Black));
+    fillPiece(board, (topPawnRow, col), Pawn(counterColor));
   };
 
   let bottomPawnRow = 6;
   for (col in 0 to 7) {
-    fillPiece(board, (bottomPawnRow, col), Pawn(White));
+    fillPiece(board, (bottomPawnRow, col), Pawn(playerFacingColor));
   };
 
   let bottomPiecesRow = 7;
   for (col in 0 to 7) {
-    fillPiece(board, (bottomPiecesRow, col), pieces(White)[col]);
+    fillPiece(
+      board,
+      (bottomPiecesRow, col),
+      pieces(playerFacingColor)[col],
+    );
   };
   board;
 };
+
+let initialState = color => {
+  {playerColor: color, chessBoard: initialBoard(color), currSelection: None};
+};
+
+type action =
+  | Reset
+  | TapCell(coord);
+
+let reducer = (state, action) =>
+  switch (action) {
+  | Reset => initialState(state.playerColor)
+  | TapCell(xy) =>
+    Js.Console.log(xy);
+    let newState = {...state, currSelection: Some(xy)};
+    Js.Console.log(newState);
+    newState;
+  };
 
 let colorCode =
   fun
@@ -80,32 +119,56 @@ let pieceCodeAndColor =
   | Rook(color) => (colorCode(color), 0xf447)
   | Pawn(color) => (colorCode(color), 0xf443);
 
-let printPiece = (piece: piece) => {
-  let (color, code) = pieceCodeAndColor(piece);
-  <i className="fas" style={ReactDOMRe.Style.make(~color, ())}>
-    {React.string(Js.String.fromCharCode(code))}
-  </i>;
-};
+let colorClass = color => color == White ? "white" : "black";
 
-let printCell = cell => {
-  let classname = cell.color == White ? "white-cell" : "black-cell";
-  <div className=classname>
-    {switch (cell.piece) {
-     | Some(piece) => printPiece(piece)
-     | None => <i />
-     }}
-  </div>;
-};
+let pieceExists = (board, selectedCoord) =>
+  Belt.Option.isSome(board[selectedCoord.x][selectedCoord.y].piece);
 
-let printRow = row => {
-  row |> Array.map(printCell) |> React.array;
-};
-
-let printBoard = board => {
-  <div className="grid"> {board |> Array.map(printRow) |> React.array} </div>;
+let hightlightedClass = (currCellCoord, state) => {
+  switch (state.currSelection) {
+  | Some(coord) =>
+    currCellCoord == coord && pieceExists(state.chessBoard, coord)
+      ? "selected" : ""
+  | None => ""
+  };
 };
 
 [@react.component]
-let make = (~board) => {
-  <main> <div className="container"> {printBoard(board)} </div> </main>;
+let make = (~playerColor) => {
+  let (state, dispatch) =
+    React.useReducer(reducer, initialState(playerColor));
+  <div className="container">
+    <div className="grid">
+      {state.chessBoard
+       |> Array.mapi((rowIndex, row) => {
+            row
+            |> Array.mapi((colIndex, cell) => {
+                 <div
+                   onClick={_ =>
+                     dispatch(TapCell({x: rowIndex, y: colIndex}))
+                   }
+                   key={string_of_int(colIndex)}
+                   className={
+                     "cell "
+                     ++ colorClass(cell.color)
+                     ++ " "
+                     ++ hightlightedClass({x: rowIndex, y: colIndex}, state)
+                   }>
+                   {switch (cell.piece) {
+                    | Some(piece) =>
+                      let (color, code) = pieceCodeAndColor(piece);
+                      <i
+                        className="fas"
+                        style={ReactDOMRe.Style.make(~color, ())}>
+                        {React.string(Js.String.fromCharCode(code))}
+                      </i>;
+                    | None => <i />
+                    }}
+                 </div>
+               })
+            |> React.array
+          })
+       |> React.array}
+    </div>
+  </div>;
 };
