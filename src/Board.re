@@ -1,95 +1,5 @@
-type color =
-  | White
-  | Black;
-
-type piece =
-  | King(color)
-  | Queen(color)
-  | Rook(color)
-  | Bishop(color)
-  | Knight(color)
-  | Pawn(color);
-
-type cell = {
-  color,
-  piece: option(piece),
-};
-
-type board = array(array(cell));
-
-type coord = {
-  x: int,
-  y: int,
-};
-
-type state = {
-  playerColor: color,
-  chessBoard: board,
-  currSelection: option(coord),
-};
-
-let emptyBoard =
-  Array.init(8, row =>
-    Array.init(8, col =>
-      {color: (row + col) mod 2 == 0 ? White : Black, piece: None}
-    )
-  );
-
-let fillPiece = (board, xy, piece) =>
-  board[fst(xy)][snd(xy)] = {
-    ...board[fst(xy)][snd(xy)],
-    piece: Some(piece),
-  };
-
-let initialBoard = (playerFacingColor: color) => {
-  let pieces = color => [|
-    Rook(color),
-    Knight(color),
-    Bishop(color),
-    Queen(color),
-    King(color),
-    Bishop(color),
-    Knight(color),
-    Rook(color),
-  |];
-
-  let counterColor =
-    switch (playerFacingColor) {
-    | White => Black
-    | Black => White
-    };
-
-  let board = emptyBoard;
-
-  let topPiecesRow = 0;
-  for (col in 0 to 7) {
-    fillPiece(board, (topPiecesRow, col), pieces(counterColor)[col]);
-  };
-
-  let topPawnRow = 1;
-  for (col in 0 to 7) {
-    fillPiece(board, (topPawnRow, col), Pawn(counterColor));
-  };
-
-  let bottomPawnRow = 6;
-  for (col in 0 to 7) {
-    fillPiece(board, (bottomPawnRow, col), Pawn(playerFacingColor));
-  };
-
-  let bottomPiecesRow = 7;
-  for (col in 0 to 7) {
-    fillPiece(
-      board,
-      (bottomPiecesRow, col),
-      pieces(playerFacingColor)[col],
-    );
-  };
-  board;
-};
-
-let initialState = color => {
-  {playerColor: color, chessBoard: initialBoard(color), currSelection: None};
-};
+open State;
+open Chess;
 
 type action =
   | Reset
@@ -98,11 +8,11 @@ type action =
 let reducer = (state, action) =>
   switch (action) {
   | Reset => initialState(state.playerColor)
-  | TapCell(xy) =>
-    Js.Console.log(xy);
-    let newState = {...state, currSelection: Some(xy)};
-    Js.Console.log(newState);
-    newState;
+  | TapCell(xy) => {
+      ...state,
+      currSelection: Some(xy),
+      possibleMoves: nextMoves(state, xy),
+    }
   };
 
 let colorCode =
@@ -124,12 +34,27 @@ let colorClass = color => color == White ? "white" : "black";
 let pieceExists = (board, selectedCoord) =>
   Belt.Option.isSome(board[selectedCoord.x][selectedCoord.y].piece);
 
-let hightlightedClass = (currCellCoord, state) => {
+let selectedClass = (currCellCoord, state) => {
   switch (state.currSelection) {
   | Some(coord) =>
     currCellCoord == coord && pieceExists(state.chessBoard, coord)
       ? "selected" : ""
   | None => ""
+  };
+};
+
+let highlightedClass = (currCellCoord, state) => {
+  Js.Console.log("possible movies:");
+  Js.Console.log(state.possibleMoves);
+  let highlight = state.possibleMoves |> List.exists(x => x == currCellCoord);
+  switch (
+    highlight,
+    Validations.isObsticle(state.chessBoard, currCellCoord)
+    && Validations.isOpponent(state, currCellCoord),
+  ) {
+  | (true, true) => "highlighted-red"
+  | (true, _) => "highlighted"
+  | _ => ""
   };
 };
 
@@ -152,7 +77,9 @@ let make = (~playerColor) => {
                      "cell "
                      ++ colorClass(cell.color)
                      ++ " "
-                     ++ hightlightedClass({x: rowIndex, y: colIndex}, state)
+                     ++ selectedClass({x: rowIndex, y: colIndex}, state)
+                     ++ " "
+                     ++ highlightedClass({x: rowIndex, y: colIndex}, state)
                    }>
                    {switch (cell.piece) {
                     | Some(piece) =>

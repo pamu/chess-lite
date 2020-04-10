@@ -1,3 +1,3 @@
 [%bs.raw {|require("./index.css")|}];
 
-ReactDOMRe.renderToElementWithId(<Board playerColor=Board.White />, "root");
+ReactDOMRe.renderToElementWithId(<Board playerColor=State.Black />, "root");

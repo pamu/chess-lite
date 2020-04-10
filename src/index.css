@@ -53,3 +53,11 @@ main {
 .selected {
   background-color: #9c6c3a;
 }
+
+.highlighted {
+  border: 2px white dashed;
+}
+
+.highlighted-red {
+  border: 2px red dashed;
+}
